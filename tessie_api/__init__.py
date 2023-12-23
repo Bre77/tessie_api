@@ -1,3 +1,9 @@
+import aiohttp
+from typing import Any, Dict, Optional
+
+from .literals import DistanceFormat
+from .tessie_wrapper import tessieRequest
+
 from .battery_health import get_battery_health
 from .boombox import boombox
 from .charges import get_charges
@@ -66,3 +72,50 @@ from .literals import (
     Seat,
     ClimateKeeperMode,
 )
+
+class TessieApi():
+    """Class for interacting with Tesla vehicles via Tessie."""
+
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        api_key: str
+    ) -> None:
+        """Initialize the TessieApi class."""
+        self.session = session
+        self.api_key = api_key
+
+    async def _request(
+        method: str,
+        path: str,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        url = f"https://api.tessie.com{path}"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        async with self.session.request(method, url, headers=headers, params=params) as response:
+            response.raise_for_status()
+            return await response.json()
+
+    async def get_battery_health(
+        vin: str,
+        from_time: int,
+        to_time: int,
+        distance_format: DistanceFormat = "km",
+    ) -> Dict[str, Any]:
+        params = {
+            k: v
+            for k, v in {
+                "from": from_time,
+                "to": to_time,
+                "distance_format": distance_format,
+            }.items()
+            if v is not None
+        }
+        return await self._request(
+            "GET", f"/{vin}/battery_health", params=params
+        )
+
+        
